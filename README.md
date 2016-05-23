@@ -11,7 +11,7 @@ Using CellAnalysis this process is sped up heavily because after a micrograph ha
 
 ## How to use
 <ol>
-<lr><li>TEST</li>
-<li>TESTEST</li></lr>
+
+<li>TESTEST</li>
 <lr><li>Test2</li></lr>
 </ol>
