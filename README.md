@@ -18,4 +18,8 @@ Using CellAnalysis this process is sped up heavily because after a micrograph ha
 <li>"Yeast cells" will analyse cross sections of whole cells, also works with protoplasts.</li>
 <li>"Plant cells" is used to analyse cells in the context of tissues, thus the membranes/cell walls between two different cells will be evaluated.</li>
 </ul>
+<li>By clicking on "Measure Cells" the measurement process is initiated. When inside the borders of the image window the mouse pointer will change to some type of cross-hairs - in this state the start of a ROI line can placed in the image by pressing the left mouse button. By moving the mouse across a cell, the ROI line is drawn. Once the left mouse button is released again, the end of a ROI line is placed in the image. At this stage, the ROI line can still be resized and dragged around the image. Double clicking on the ROI line hands the line over to pixel saturation analysis.</li>
+<li>Immediately after double clicking on the ROI line a pixel intensity plot appears in the small plot window on the right side of the application window. CellAnalysis recognizes when the pixel intensity distribution is not plausible in the context of the experiments it was designed to analyze and returns an error in such cases (e.g. there is a peak in the cytoplasm that is higher than the membrane peaks).</li>
+<li>If </li>
+
 </ol>
