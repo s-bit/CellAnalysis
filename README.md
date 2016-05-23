@@ -11,7 +11,10 @@ Using CellAnalysis this process is sped up heavily because after a micrograph ha
 
 ## How to use
 <ol>
+<li>Open CellAnalysis. There are two plot windows and some buttons in the application window.</li>
+<li>Click on the button "Load Image" in order to import an image file. Any image format can be read by CellAnalysis.</li>
+<li>After the image has been imported successfully, choose which "cell type" you want to analyse by clicking on one of the buttons in the panel "Choose cell type":
+<li>"Yeast cells" will analyse cross sections of whole cells, also works with protoplasts.</li>
+<li>"Plant cells" is used to analyse cells in the context of tissues, thus the membranes/cell walls between two different cells will be evaluated.</li></li>
 
-<li>TESTEST</li>
-<lr><li>Test2</li></lr>
 </ol>
