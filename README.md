@@ -1,6 +1,8 @@
 # PixelAnalysis
-<p>Created by Sven T. Bitters, 2016</p>
-<p>Contact: sven.bitters@gmail.com</p>
+<p>
+Created by Sven T. Bitters, 2016<br>
+Contact: sven.bitters@gmail.com
+</p>
 
 ## Introduction
 PixelAnalysis is an image anlysis tool for the evaluation of pixel intensity in micrographs written in MATLAB. 
