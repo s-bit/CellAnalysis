@@ -1,6 +1,6 @@
 # PixelAnalysis
 <p>
-Created by Sven T. Bitters, 2016<br>
+Project started by Sven T. Bitters, 2016<br>
 Contact: sven.bitters@gmail.com
 </p>
 
