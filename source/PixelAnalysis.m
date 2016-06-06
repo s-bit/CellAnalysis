@@ -32,7 +32,7 @@ window_height = screen_height*0.4;
 
 % CHECK FOR UPDATES
 % This program version
-ThisVersion = '0.1';
+ThisVersion = '0.2';
 
 % Get the latest version
 [NewVersion,status] = urlread('https://raw.githubusercontent.com/s-bit/PixelAnalysis/master/CurrentVersion');
@@ -257,14 +257,7 @@ if cancel_import == false
     else
         my_Image = get_Image;
     end
-    
-    % Initialize my_Adjust, then adjust contrast and brightness, then sharpen -
-    % do thrice
-    my_Adjust = my_Image;
-    for ii = 1:3
-        my_Adjust = imsharpen(imadjust(my_Adjust, stretchlim(my_Adjust, [0.6 0.995]), []));
-    end
-       
+          
     % Set up image display
     set(0,'Showhidden','on')
     image_window = figure(...
@@ -299,7 +292,6 @@ if cancel_import == false
     
     setappdata(hObject.Parent, 'img_title', img_title);
     setappdata(hObject.Parent, 'my_Image', my_Image);
-    setappdata(hObject.Parent, 'my_Adjust', my_Adjust);
     
     % Enable next step
     handles;
@@ -361,8 +353,8 @@ while measure == 1
         delete(roi_line)
         
         ii = ii + 1;
-        
         setappdata(hObject.Parent, 'counter', ii);
+        
         setappdata(handles.ui_window, 'user_saved', false);
         
         guidata(hObject, handles)
@@ -384,6 +376,7 @@ while measure == 1
             axes(handles.image_axes)
             handles.line = plot(x, y, 'Color', [0 0 1], 'Linewidth', 1);
             handles.text = text(x(2), y(2),' E', 'Color', [0 0 1]);
+            lasterror
         catch
             break
         end
@@ -489,7 +482,9 @@ for jj = 1:length(handles.profiles)
         ylim([0 ceil(max(data)+10)])
         xlabel('ROI Length [px]', 'FontSize', 14)
         ylabel('Pixel Intensity', 'FontSize', 14)
-        set(gca,'XMinorTick','on','YMinorTick','on')
+        set(gca,'XMinorTick', 'on', 'YMinorTick', 'on')
+        set(gca, 'TickLength', [0.01 0.002])
+        set(gca, 'TickDir', 'out');
         grid on
         text(numel(data)*0.05, ceil(max(data)+10)*0.925, num2str(handles.profileNumber(jj)), 'FontSize', 16)
         
@@ -597,7 +592,22 @@ if strcmp(getappdata(handles.ui_window, 'measure_type'), 'across') == 1
     
     manual_analysis = [left_peak right_peak left_cell right_cell];
 else
+    my_text = text(x_lim(2)*0.05, 240, 'Select where the cytoplasm of the left cell ends!', 'FontSize', 14);
+    [left_cell, y_coord] = ginput(1);
+    left_cell = round(left_cell);
+    delete(my_text)
+    handles.c_left = plot(left_cell, pixels(left_cell), 'sk', 'LineWidth', 1);
     
+    my_text = text(x_lim(2)*0.05, 240, 'Select where the cytoplasm of the right cell ends!', 'FontSize', 14);
+    [right_cell, y_coord] = ginput(1);
+    right_cell = round(right_cell);
+    delete(my_text)
+    handles.c_right = plot(right_cell, pixels(right_cell), 'sk', 'LineWidth', 1);
+    
+    handles.between_cells_text = text(x_lim(2)*0.05, 240, 'The membrane is marked in black:', 'FontSize', 14);
+    handles.membrane_line = plot(left_cell:right_cell, pixels(left_cell:right_cell), '-k', 'LineWidth', 2);
+    
+    manual_analysis = [left_cell right_cell];
 end
 
 setappdata(handles.ui_window, 'manual_analysis', manual_analysis)
@@ -631,9 +641,17 @@ end % of function
 function button_manualReset_Callback(hObject, eventdata)
 handles = guidata(gcbo);
 
-delete(handles.p_left)
-delete(handles.p_right)
-delete(handles.cell_line)
+if strcmp(getappdata(handles.ui_window, 'measure_type'), 'across') == 1
+    delete(handles.p_left)
+    delete(handles.p_right)
+    delete(handles.cell_line)
+else
+    delete(handles.c_left)
+    delete(handles.c_right)
+    delete(handles.membrane_line)
+    delete(handles.between_cells_text)
+end
+
 setappdata(handles.ui_window, 'manual_analysis', [])
 
 handlesArray = [handles.hmanual_accept, handles.hmanual_reset];
@@ -746,10 +764,10 @@ hold on
 switch measure_type
     case 'across'
         [membrane_val, cytosol_val, mc_ratio, profile_pixels, interpolated_pixels, gave_error] = AcrossCells(...
-            getappdata(handles.ui_window, 'my_Image'), getappdata(handles.ui_window, 'my_Adjust'), x, y, manual_analysis);
+            getappdata(handles.ui_window, 'my_Image'), x, y, manual_analysis);
     case 'between'
-%         BetweenCells(getappdata(hObject.Parent, 'my_Image'), getappdata(hObject.Parent, 'my_Adjust'), x, y);
-        %              [membrane_val, cytosol_val, mc_ratio, profile_pixels, gave_error] =
+        [membrane_val, cytosol_val, mc_ratio, profile_pixels, interpolated_pixels, gave_error] = BetweenCells(...
+            getappdata(handles.ui_window, 'my_Image'), x, y, manual_analysis);
 end
 
 x_lim = get(gca, 'XLim');
