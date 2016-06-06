@@ -13,7 +13,6 @@ Using PixelAnalysis this process is sped up heavily because after a micrograph h
 
 ## To Do
 <ul>
-  <li>Add BetweenCells functionallity</li>
   <li>Add some advanced options (e.g. user-defined decimal mark)</li>
   <li>Refine error handling</li>
   <li>Create a nice splash screen/icon</li>
