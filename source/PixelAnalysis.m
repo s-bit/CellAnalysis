@@ -32,7 +32,7 @@ window_height = screen_height*0.4;
 
 % CHECK FOR UPDATES
 % This program version
-ThisVersion = '0.2';
+ThisVersion = '0.3';
 
 % Get the latest version
 [NewVersion,status] = urlread('https://raw.githubusercontent.com/s-bit/PixelAnalysis/master/CurrentVersion');
@@ -191,6 +191,7 @@ guidata(ui_window, handles)
 setappdata(handles.ui_window, 'user_saved', true)
 setappdata(handles.ui_window, 'manual_analysis', [])
 setappdata(handles.ui_window, 'pixprof_mod', false);
+setappdata(handles.ui_window, 'image_exists', 0);
 
 % Disable everything except hload
 handlesArray = [handles.hmeasure, handles.hdiscard, handles.hsave, handles.rb_across, handles.rb_between, handles.hmanual, hmanual_accept, hmanual_reset, hmanual_auto];
@@ -214,8 +215,15 @@ end % of function
 % C A L L B A C K S
 % =========================================================================
 function button_load_Callback(hObject, eventdata)
+handles = guidata(gcbo);
+
 % Import image loop
 cancel_import = false;
+
+image_exists = getappdata(handles.ui_window, 'image_exists');
+user_saved = getappdata(handles.ui_window, 'user_saved');
+
+
 while 1 == 1
     [DataSourceName, DataSourcePath] = uigetfile({'*.tif; *.bmp; *.jpg; *.gif; *.png', 'Image Files'; '*.*', 'All Files'}, 'Select an Image File');
     
@@ -239,7 +247,29 @@ while 1 == 1
 end
 
 % if an image was imported successfully...
-if cancel_import == false 
+if cancel_import == false
+    
+    if image_exists == 1
+        if user_saved == false
+            save_data()
+        end
+        
+        handles.profiles = {0};
+        handles.membrane = [0];
+        handles.cytosol = [0];
+        handles.ratios = [0];
+        handles.profileNumber = [0];
+        handles.pixel_plot = {0};
+        handles.gaveError = [0];
+        
+        delete(handles.image_window)
+        cla(handles.profile_axes)
+        guidata(handles.ui_window, handles)
+        
+        handlesArray = [handles.hsave, handles.hdiscard, handles.hmanual];
+        set(handlesArray, 'Enable', 'off');
+    end
+    
     % Initialize fundamental variables
     setappdata(hObject.Parent, 'counter', 1);
     setappdata(hObject.Parent, 'delete_last', 0);
@@ -300,8 +330,11 @@ if cancel_import == false
     
     % Refresh handles
     handles.image_window = image_window;
-    guidata(gcbo, handles)
+    guidata(handles.ui_window, handles)
 end
+
+setappdata(handles.ui_window, 'image_exists', 1);
+
 end % of function
 
 
@@ -347,7 +380,8 @@ while measure == 1
         % Hand all input over to analyze_pixel
         % Plot the pixel profile in a new window, mark peaks and
         % cellular signals, determine a value for membrane and cellular signals
-        [ii, handles] = analyze_pixel();
+                
+        [ii, handles] = analyze_pixel(handles);
         
         % Delete the original roi-line
         delete(roi_line)
@@ -408,112 +442,9 @@ end % of function
 
 
 function button_save_Callback(hObject, eventdata)
-handles = guidata(gcbo);
 
-% Choose save location
-user_saved = false;
-while user_saved == false
-    save_dir = uigetdir('C:\', 'PixelAnalysis - Select Save Location');
-    if save_dir == 0
-        quest_h = questdlg('Data has not been saved, yet! Really cancel?', 'Cancel? - Curve Fitting', 'No', 'Yes', 'No');
-        waitfor(quest_h)
-        if strcmp(quest_h, 'Yes') == 1
-            return
-        end
-    else
-        user_saved = true;
-    end
-end
+save_data()
 
-% Initialize a progress bar
-waitbar_handle = waitbar(0, 'Saving data...');
-steps = length(handles.profiles) + 3;
-
-% Create a new folder for saving the data
-img_title = getappdata(hObject.Parent, 'img_title');
-my_path = [save_dir '\PixelAnalysis_' img_title '_Results'];
-save_dir_exist = exist(my_path, 'dir');
-waitbar(1/steps)
-if save_dir_exist ~= 7
-    mkdir(my_path)
-else
-    aa = 1;
-    while save_dir_exist == 7
-        aa = aa + 1;
-        my_path = [save_dir '\PixelAnalysis_' img_title '_Results_' num2str(aa)];
-        save_dir_exist = exist(my_path, 'dir');
-    end
-    mkdir(my_path)
-end
-waitbar(1.5/steps)
-
-% Copy micrograph with ROI-lines to a new figure window, save as tif
-img = figure('Visible', 'off');
-ax = axes;
-clf;
-new_handle = copyobj(handles.image_axes, img);
-set(gca, 'ActivePositionProperty', 'outerposition')
-set(gca, 'Units', 'normalized')
-set(gca, 'OuterPosition', [0 0 1 1])
-set(gca, 'position', [0.1300 0.1100 0.7750 0.8150])
-colormap('gray')
-whereToStore_cells = fullfile(my_path,[[img_title '_PixelAnalysis_modOrig'] '.tif']);
-print(img, whereToStore_cells, '-dtiffn', '-r300')
-waitbar(2/steps)
-
-% Open txt for saving numerical values
-whereToStore_txt = fullfile(my_path, [[img_title '_PixelAnalysis_Parameters'], '.txt']);
-loc_txt = fopen(whereToStore_txt, 'w');
-fprintf(loc_txt, 'Cell Number; Membrane Signal; Cytoplasm Signal; Ratio\r\n');
-waitbar(3/steps)
-
-% Save all pixel profiles and numerical values (membrane/cellular signals +
-% ratios)
-for jj = 1:length(handles.profiles)
-    if handles.gaveError(jj) == 0
-        
-        % Recreate the pixel profile in an invisible figure window, add the
-        % number of the cell
-        data = handles.profiles{jj, :};
-        fig = figure('Visible', 'off');
-        ax = axes;
-        plot(1:numel(data), data, '-k')
-        xlim([1 numel(data)])
-        ylim([0 ceil(max(data)+10)])
-        xlabel('ROI Length [px]', 'FontSize', 14)
-        ylabel('Pixel Intensity', 'FontSize', 14)
-        set(gca,'XMinorTick', 'on', 'YMinorTick', 'on')
-        set(gca, 'TickLength', [0.01 0.002])
-        set(gca, 'TickDir', 'out');
-        grid on
-        text(numel(data)*0.05, ceil(max(data)+10)*0.925, num2str(handles.profileNumber(jj)), 'FontSize', 16)
-        
-        % Save profiles as epsc and png at chosen location
-        whereToStore_vec = fullfile(my_path,[[img_title '_PixelAnalysis_' num2str(handles.profileNumber(jj))] '.epsc']);
-        print(fig, whereToStore_vec, '-depsc', '-tiff', '-painters')
-        
-        whereToStore_png = fullfile(my_path, [[img_title '_PixelAnalysis_' num2str(handles.profileNumber(jj))], '.png']);
-        print(fig, whereToStore_png, '-dpng', '-r300')
-        
-        % Export numerical values
-        membrane_val = handles.membrane(jj);
-        cytosol_val = handles.cytosol(jj);
-        mc_ratios = handles.ratios(jj);
-        data_export_point = [num2str(handles.profileNumber(jj)) '; ' num2str(membrane_val) '; ' num2str(cytosol_val) '; ' num2str(mc_ratios)];
-        data_export = strrep(data_export_point, '.', ',');
-        fprintf(loc_txt, '%s\r\n', data_export);
-        
-        if jj == length(handles.profiles)
-            fclose(loc_txt);
-        end
-    end
-    waitbar((jj+3)/steps)
-end
-waitbar(1, waitbar_handle, 'Saving successful!');
-pause(1)
-close(waitbar_handle)
-
-setappdata(hObject.Parent, 'user_saved', user_saved)
 end % of function
 
 
@@ -750,8 +681,7 @@ end % of function
 
 
 % NORMAL FUNCTIONS
-function [ii, handles] = analyze_pixel()
-handles = guidata(gcbo);
+function [ii, handles] = analyze_pixel(handles)
 
 measure_type = getappdata(handles.ui_window, 'measure_type');
 x = getappdata(handles.ui_window, 'x_vals');
@@ -813,4 +743,105 @@ else
     end
 end
 
+end % of function
+
+
+function save_data()
+handles = guidata(gcbo);
+
+% Choose save location
+user_saved = false;
+while user_saved == false
+    save_dir = uigetdir('C:\', 'PixelAnalysis - Select Save Location');
+    if save_dir == 0
+        quest_h = questdlg('Data has not been saved, yet! Really cancel?', 'Cancel? - Curve Fitting', 'No', 'Yes', 'No');
+        waitfor(quest_h)
+        if strcmp(quest_h, 'Yes') == 1
+            return
+        end
+    else
+        user_saved = true;
+    end
+end
+
+% Initialize a progress bar
+waitbar_handle = waitbar(0, 'Saving data...');
+steps = length(handles.profiles) + 3;
+
+% Create a new folder for saving the data
+img_title = getappdata(handles.ui_window, 'img_title');
+my_path = [save_dir '\PixelAnalysis_' img_title '_Results'];
+save_dir_exist = exist(my_path, 'dir');
+waitbar(1/steps)
+if save_dir_exist ~= 7
+    mkdir(my_path)
+else
+    aa = 1;
+    while save_dir_exist == 7
+        aa = aa + 1;
+        my_path = [save_dir '\PixelAnalysis_' img_title '_Results_' num2str(aa)];
+        save_dir_exist = exist(my_path, 'dir');
+    end
+    mkdir(my_path)
+end
+waitbar(1.5/steps)
+
+% Save micrograph with ROI-lines as tif
+whereToStore_cells = fullfile(my_path,[[img_title '_PixelAnalysis_modOrig'] '.tif']);
+print(handles.image_window, whereToStore_cells, '-dtiffn', '-r300')
+waitbar(2/steps)
+
+% Open txt for saving numerical values
+whereToStore_txt = fullfile(my_path, [[img_title '_PixelAnalysis_Parameters'], '.txt']);
+loc_txt = fopen(whereToStore_txt, 'w');
+fprintf(loc_txt, 'Cell Number; Membrane Signal; Cytoplasm Signal; Ratio\r\n');
+waitbar(3/steps)
+
+% Save all pixel profiles and numerical values (membrane/cellular signals +
+% ratios)
+for jj = 1:length(handles.profiles)
+    if handles.gaveError(jj) == 0
+        
+        % Recreate the pixel profile in an invisible figure window, add the
+        % number of the cell
+        data = handles.profiles{jj, :};
+        fig = figure('Visible', 'off');
+        ax = axes;
+        plot(1:numel(data), data, '-k')
+        xlim([1 numel(data)])
+        ylim([0 ceil(max(data)+10)])
+        xlabel('ROI Length [px]', 'FontSize', 14)
+        ylabel('Pixel Intensity', 'FontSize', 14)
+        set(gca,'XMinorTick', 'on', 'YMinorTick', 'on')
+        set(gca, 'TickLength', [0.01 0.002])
+        set(gca, 'TickDir', 'out');
+        grid on
+        text(numel(data)*0.05, ceil(max(data)+10)*0.925, num2str(handles.profileNumber(jj)), 'FontSize', 16)
+        
+        % Save profiles as epsc and png at chosen location
+        whereToStore_vec = fullfile(my_path,[[img_title '_PixelAnalysis_' num2str(handles.profileNumber(jj))] '.epsc']);
+        print(fig, whereToStore_vec, '-depsc', '-tiff', '-painters')
+        
+        whereToStore_png = fullfile(my_path, [[img_title '_PixelAnalysis_' num2str(handles.profileNumber(jj))], '.png']);
+        print(fig, whereToStore_png, '-dpng', '-r300')
+        
+        % Export numerical values
+        membrane_val = handles.membrane(jj);
+        cytosol_val = handles.cytosol(jj);
+        mc_ratios = handles.ratios(jj);
+        data_export_point = [num2str(handles.profileNumber(jj)) '; ' num2str(membrane_val) '; ' num2str(cytosol_val) '; ' num2str(mc_ratios)];
+        data_export = strrep(data_export_point, '.', ',');
+        fprintf(loc_txt, '%s\r\n', data_export);
+        
+        if jj == length(handles.profiles)
+            fclose(loc_txt);
+        end
+    end
+    waitbar((jj+3)/steps)
+end
+waitbar(1, waitbar_handle, 'Saving successful!');
+pause(1)
+close(waitbar_handle)
+
+setappdata(handles.ui_window, 'user_saved', user_saved)
 end % of function
