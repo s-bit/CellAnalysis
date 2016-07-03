@@ -556,7 +556,7 @@ handles = guidata(gcbo);
 ii = getappdata(handles.ui_window, 'counter')-1;
 setappdata(handles.ui_window, 'counter', ii)
 
-[ii, handles] = analyze_pixel();
+[ii, handles] = analyze_pixel(handles);
 
 setappdata(handles.ui_window, 'counter', ii+1)
 setappdata(handles.ui_window, 'manual_analysis', []);
